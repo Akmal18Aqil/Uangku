@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import '../../domain/entities/transaction.dart';
 import '../models/transaction_model.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class SheetsService {
-  // TODO: GANTI URL INI DENGAN URL DEPLOYMENT GOOGLE APPS SCRIPT ANDA
-  static const String apiUrl = 'isi';
+  static String get apiUrl => dotenv.env['SHEETS_API_URL'] ?? '';
   Future<List<Transaction>> getTransactions() async {
     try {
       var response = await http.get(Uri.parse(apiUrl));
