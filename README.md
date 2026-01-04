@@ -56,12 +56,14 @@ This app uses a Google Sheet as its database. Follow these steps to set it up:
 
 ### 3. Connect App to Backend
 
-1.  Open `lib/features/transactions/data/datasources/sheets_service.dart`.
-2.  Replace the `apiUrl` variable with your Deployment URL:
+1.  Create a file named `.env` in the root directory.
+2.  Add your Google Apps Script Web App URL to the file:
 
-```dart
-static const String apiUrl = 'YOUR_DEPLOYMENT_URL_HERE';
+```env
+SHEETS_API_URL=https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec
 ```
+
+> **Note**: The `.env` file is included in `.gitignore` to keep your API URL private.
 
 ### 4. Run the App
 
@@ -198,6 +200,7 @@ function formatDate(dateObj) {
 *   [http](https://pub.dev/packages/http) - API Requests
 *   [intl](https://pub.dev/packages/intl) - Date Formatting
 *   [google_fonts](https://pub.dev/packages/google_fonts) - Typography
+*   [flutter_dotenv](https://pub.dev/packages/flutter_dotenv) - Environment Variables
 
 ---
 Created with ❤️ by [Akmal18Aqil](https://github.com/Akmal18Aqil)
