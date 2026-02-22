@@ -84,39 +84,33 @@ Copy this code into your Google Apps Script project.
  */
 const SHEET_NAME = 'Transactions';
 
-/**
- * MENGANDEL REQUEST GET (READ DATA)
- * Mengambil semua baris dari sheet dan mengembalikannya sebagai JSON Array.
- */
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(SHEET_NAME);
     
-    // Cek jika sheet tidak ditemukan
     if (!sheet) {
       return responseJSON({ status: 'error', message: 'Sheet not found' });
     }
 
-    // Ambil semua data (termasuk header)
     const data = sheet.getDataRange().getValues();
     
-    // Jika data kosong atau hanya header
     if (data.length <= 1) {
       return responseJSON({ status: 'success', data: [] });
     }
 
-    // Pisahkan header dan baris data
-    const rows = data.slice(1); // Mengabaikan baris 1 (Header)
+    const rows = data.slice(1);
     
     // Mapping data array ke object JSON
+    // Asumsi kolom: A=Date, B=Description, C=Category, D=Type, E=Amount, F=ID
     const formattedData = rows.map(row => {
       return {
-        date: formatDate(row[0]),       // Col A
-        description: row[1],            // Col B
-        category: row[2],               // Col C
-        type: row[3],                   // Col D
-        amount: Number(row[4]) || 0     // Col E (Force number)
+        date: formatDate(row[0]),
+        description: row[1],
+        category: row[2],
+        type: row[3],
+        amount: Number(row[4]) || 0,
+        id: row[5] || '' // Tambahan ID
       };
     });
 
@@ -127,10 +121,6 @@ function doGet(e) {
   }
 }
 
-/**
- * MENGANDEL REQUEST POST (CREATE DATA)
- * Menerima JSON dari Flutter dan menambahkannya ke baris baru (Append Row).
- */
 function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -140,56 +130,81 @@ function doPost(e) {
       return responseJSON({ status: 'error', message: 'Sheet not found' });
     }
 
-    // Parsing data body dari request
-    // e.postData.contents berisi string JSON mentah
     const requestData = JSON.parse(e.postData.contents);
+    const action = requestData.action || 'create';
 
-    // Validasi sederhana
-    if (!requestData.description || !requestData.amount) {
-      return responseJSON({ status: 'error', message: 'Description and Amount are required' });
+    if (action === 'create') {
+      if (!requestData.description || !requestData.amount) {
+        return responseJSON({ status: 'error', message: 'Description and Amount are required' });
+      }
+
+      // Generate UID
+      const newId = Utilities.getUuid();
+
+      const newRow = [
+        new Date(),
+        requestData.description,
+        requestData.category || 'Uncategorized',
+        requestData.type || 'Expense',
+        requestData.amount,
+        newId
+      ];
+
+      sheet.appendRow(newRow);
+      return responseJSON({ status: 'success', message: 'Data saved successfully', id: newId });
+
+    } else if (action === 'update') {
+      if (!requestData.id) return responseJSON({ status: 'error', message: 'ID is required for update' });
+      
+      const data = sheet.getDataRange().getValues();
+      // Find row by ID (Column F is index 5)
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][5] === requestData.id) {
+          const rowNumber = i + 1;
+          // Update values
+          if (requestData.date) sheet.getRange(rowNumber, 1).setValue(new Date(requestData.date));
+          if (requestData.description) sheet.getRange(rowNumber, 2).setValue(requestData.description);
+          if (requestData.category) sheet.getRange(rowNumber, 3).setValue(requestData.category);
+          if (requestData.type) sheet.getRange(rowNumber, 4).setValue(requestData.type);
+          if (requestData.amount) sheet.getRange(rowNumber, 5).setValue(requestData.amount);
+          
+          return responseJSON({ status: 'success', message: 'Data updated successfully' });
+        }
+      }
+      return responseJSON({ status: 'error', message: 'ID not found' });
+
+    } else if (action === 'delete') {
+      if (!requestData.id) return responseJSON({ status: 'error', message: 'ID is required for delete' });
+      
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][5] === requestData.id) {
+          const rowNumber = i + 1;
+          sheet.deleteRow(rowNumber);
+          return responseJSON({ status: 'success', message: 'Data deleted successfully' });
+        }
+      }
+      return responseJSON({ status: 'error', message: 'ID not found' });
     }
 
-    // Persiapkan baris baru sesuai urutan kolom: 
-    // Date (A), Description (B), Category (C), Type (D), Amount (E)
-    const newRow = [
-      new Date(),                // Otomatis isi waktu server saat ini
-      requestData.description,
-      requestData.category || 'Uncategorized',
-      requestData.type || 'Expense',
-      requestData.amount
-    ];
-
-    // Tambahkan ke sheet
-    sheet.appendRow(newRow);
-
-    return responseJSON({ status: 'success', message: 'Data saved successfully' });
+    return responseJSON({ status: 'error', message: 'Invalid action' });
 
   } catch (error) {
     return responseJSON({ status: 'error', message: error.toString() });
   }
 }
 
-/**
- * HELPER: Format Output JSON
- * Memastikan output selalu dalam format JSON yang valid untuk API
- */
 function responseJSON(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/**
- * HELPER: Format Tanggal
- * Mengubah object Date Javascript/GAS menjadi string ISO (YYYY-MM-DD)
- * agar mudah diparsing di Flutter.
- */
 function formatDate(dateObj) {
   if (Object.prototype.toString.call(dateObj) === '[object Date]') {
-    // Menggunakan Utilities.formatDate untuk zona waktu Jakarta (WIB)
     return Utilities.formatDate(dateObj, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm:ss");
   }
-  return dateObj; // Jika bukan tanggal, kembalikan aslinya
+  return dateObj;
 }
 ```
 

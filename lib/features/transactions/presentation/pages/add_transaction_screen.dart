@@ -5,7 +5,9 @@ import '../../domain/entities/transaction.dart';
 import '../providers/transaction_provider.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final Transaction? transactionToEdit;
+
+  const AddTransactionScreen({super.key, this.transactionToEdit});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -13,12 +15,12 @@ class AddTransactionScreen extends StatefulWidget {
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
+  late TextEditingController _descriptionController;
+  late TextEditingController _amountController;
 
-  String _selectedType = 'Expense';
-  String _selectedCategory = 'Makanan'; // Default
-  DateTime _selectedDate = DateTime.now();
+  late String _selectedType;
+  late String _selectedCategory;
+  late DateTime _selectedDate;
 
   // Example categories
   final List<String> _categories = [
@@ -31,6 +33,32 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     'Bonus',
     'Lainnya',
   ];
+
+  bool get isEditing => widget.transactionToEdit != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _descriptionController = TextEditingController(
+      text: isEditing ? widget.transactionToEdit!.description : '',
+    );
+    _amountController = TextEditingController(
+      text: isEditing
+          ? widget.transactionToEdit!.amount.toStringAsFixed(0)
+          : '',
+    );
+    _selectedType = isEditing ? widget.transactionToEdit!.type : 'Expense';
+
+    // Ensure category exists in list or default to arbitrary existing
+    final initialCat = isEditing
+        ? widget.transactionToEdit!.category
+        : 'Makanan';
+    _selectedCategory = _categories.contains(initialCat)
+        ? initialCat
+        : 'Lainnya';
+
+    _selectedDate = isEditing ? widget.transactionToEdit!.date : DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -59,6 +87,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final amount = double.parse(_amountController.text);
 
       final newTransaction = Transaction(
+        id: isEditing ? widget.transactionToEdit!.id : null,
         date: _selectedDate,
         description: description,
         category: _selectedCategory,
@@ -68,7 +97,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
       // Call Provider
       final provider = Provider.of<TransactionProvider>(context, listen: false);
-      await provider.addTransaction(newTransaction);
+
+      if (isEditing) {
+        await provider.updateTransaction(newTransaction);
+      } else {
+        await provider.addTransaction(newTransaction);
+      }
 
       if (mounted) {
         if (provider.error != null) {
@@ -77,7 +111,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
           ).showSnackBar(SnackBar(content: Text('Error: ${provider.error}')));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Transaksi berhasil disimpan!')),
+            SnackBar(
+              content: Text(
+                isEditing
+                    ? 'Transaksi berhasil diubah!'
+                    : 'Transaksi berhasil disimpan!',
+              ),
+            ),
           );
           Navigator.of(context).pop(); // Back to Home
         }
@@ -92,9 +132,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Tambah Transaksi',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          isEditing ? 'Ubah Transaksi' : 'Tambah Transaksi',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         elevation: 0,

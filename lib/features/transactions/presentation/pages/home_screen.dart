@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
 import '../../domain/entities/transaction.dart';
 import '../providers/transaction_provider.dart';
 import 'add_transaction_screen.dart';
@@ -61,13 +62,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Custom Colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = const Color(0xFF10B981); // Emerald Green
     final expenseColor = const Color(0xFFEF4444); // Red
-    final backgroundColor = const Color(0xFFF3F4F6); // Light Grey
+    final cardColor = Theme.of(context).cardColor;
+    final textColor =
+        Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black87;
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Consumer<TransactionProvider>(
           builder: (context, provider, child) {
@@ -78,14 +81,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(24.0),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardColor,
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(30),
                       bottomRight: Radius.circular(30),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -102,13 +105,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        formatRupiah(provider.totalBalance),
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(
+                          begin: 0,
+                          end: provider.totalBalance,
                         ),
+                        duration: const Duration(milliseconds: 1000),
+                        builder: (context, value, child) {
+                          return Text(
+                            formatRupiah(value),
+                            style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 24),
                       Row(
@@ -123,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             height: 40,
                             width: 1,
-                            color: Colors.grey[200],
+                            color: isDark ? Colors.grey[800] : Colors.grey[200],
                           ),
                           _buildSummaryItem(
                             'Pengeluaran',
@@ -137,24 +149,38 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // RECENT TRANSACTIONS HEADER
+                // RECENT TRANSACTIONS HEADER & MONTH PICKER
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Recent Transactions',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left),
+                            onPressed: () => provider.changeMonth(-1),
+                          ),
+                          Text(
+                            DateFormat(
+                              'MMM yyyy',
+                            ).format(provider.selectedDate),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right),
+                            onPressed: () => provider.changeMonth(1),
+                          ),
+                        ],
                       ),
                       TextButton(
                         onPressed: () {}, // TODO: See All
                         child: Text(
-                          'See All',
+                          'Semua',
                           style: TextStyle(color: primaryColor),
                         ),
                       ),
@@ -168,19 +194,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? Center(
                           child: CircularProgressIndicator(color: primaryColor),
                         )
-                      : provider.transactions.isEmpty
+                      : provider.filteredTransactions.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.receipt_long,
-                                size: 60,
-                                color: Colors.grey[300],
+                              Lottie.network(
+                                'https://lottie.host/5a22e86d-f42e-43cf-be61-e00f9aa0c2e3/xW42dG2jYw.json',
+                                height: 150,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.receipt_long,
+                                    size: 60,
+                                    color: isDark
+                                        ? Colors.grey[800]
+                                        : Colors.grey[300],
+                                  );
+                                },
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Belum ada transaksi',
+                                'Belum ada transaksi di bulan ini',
                                 style: TextStyle(color: Colors.grey[500]),
                               ),
                             ],
@@ -188,20 +222,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         )
                       : ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          itemCount: provider.transactions.length,
+                          itemCount: provider.filteredTransactions.length,
                           itemBuilder: (context, index) {
-                            final transaction = provider.transactions[index];
+                            final transaction =
+                                provider.filteredTransactions[index];
                             final isExpense =
                                 transaction.type.toLowerCase() == 'expense';
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: cardColor,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.grey.withOpacity(0.05),
+                                    color: Colors.black.withOpacity(
+                                      isDark ? 0.3 : 0.05,
+                                    ),
                                     blurRadius: 5,
                                     offset: const Offset(0, 2),
                                   ),
@@ -212,8 +249,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 leading: CircleAvatar(
                                   radius: 20,
                                   backgroundColor: isExpense
-                                      ? const Color(0xFFFEE2E2) // Light Red
-                                      : const Color(0xFFD1FAE5), // Light Green
+                                      ? (isDark
+                                            ? Colors.red.withOpacity(0.2)
+                                            : const Color(
+                                                0xFFFEE2E2,
+                                              )) // Light Red
+                                      : (isDark
+                                            ? Colors.green.withOpacity(0.2)
+                                            : const Color(
+                                                0xFFD1FAE5,
+                                              )), // Light Green
                                   child: Icon(
                                     getIconForCategory(transaction.category),
                                     color: isExpense
@@ -241,15 +286,126 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                 ),
-                                trailing: Text(
-                                  '${isExpense ? '-' : '+'} ${formatRupiah(transaction.amount)}',
-                                  style: TextStyle(
-                                    color: isExpense
-                                        ? expenseColor
-                                        : primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '${isExpense ? '-' : '+'} ${formatRupiah(transaction.amount)}',
+                                      style: TextStyle(
+                                        color: isExpense
+                                            ? expenseColor
+                                            : primaryColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    PopupMenuButton<String>(
+                                      onSelected: (value) async {
+                                        if (transaction.id == null ||
+                                            transaction.id!.isEmpty) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Transaksi ini tidak memiliki ID (Refresh required)',
+                                              ),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        if (value == 'edit') {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  AddTransactionScreen(
+                                                    transactionToEdit:
+                                                        transaction,
+                                                  ),
+                                            ),
+                                          );
+                                        } else if (value == 'delete') {
+                                          bool confirm =
+                                              await showDialog(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text(
+                                                    'Hapus Transaksi',
+                                                  ),
+                                                  content: const Text(
+                                                    'Yakin ingin menghapus transaksi ini?',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            ctx,
+                                                            false,
+                                                          ),
+                                                      child: const Text(
+                                                        'Batal',
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            ctx,
+                                                            true,
+                                                          ),
+                                                      child: const Text(
+                                                        'Hapus',
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ) ??
+                                              false;
+
+                                          if (confirm && context.mounted) {
+                                            await Provider.of<
+                                                  TransactionProvider
+                                                >(context, listen: false)
+                                                .deleteTransaction(
+                                                  transaction.id!,
+                                                );
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text(
+                                                    'Transaksi dihapus',
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
+                                      },
+                                      itemBuilder: (BuildContext context) {
+                                        return [
+                                          const PopupMenuItem<String>(
+                                            value: 'edit',
+                                            child: Text('Edit'),
+                                          ),
+                                          const PopupMenuItem<String>(
+                                            value: 'delete',
+                                            child: Text(
+                                              'Hapus',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ),
+                                        ];
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
                             );
@@ -260,18 +416,6 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddTransactionScreen(),
-            ),
-          );
-        },
-        backgroundColor: primaryColor,
-        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -295,13 +439,19 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         const SizedBox(height: 4),
-        Text(
-          formatRupiah(amount),
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: amount),
+          duration: const Duration(milliseconds: 1000),
+          builder: (context, value, child) {
+            return Text(
+              formatRupiah(value),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            );
+          },
         ),
       ],
     );

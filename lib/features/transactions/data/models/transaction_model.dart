@@ -3,12 +3,14 @@ import '../../domain/entities/transaction.dart';
 
 class TransactionModel extends Transaction {
   TransactionModel({
+    String? id,
     required DateTime date,
     required String description,
     required String category,
     required String type,
     required double amount,
   }) : super(
+         id: id,
          date: date,
          description: description,
          category: category,
@@ -47,6 +49,7 @@ class TransactionModel extends Transaction {
     }
 
     return TransactionModel(
+      id: json['id']?.toString(), // Parse ID
       date: parseDate(json['date']),
       description: json['description']?.toString() ?? 'No Description',
       category: json['category']?.toString() ?? 'General',
@@ -57,6 +60,7 @@ class TransactionModel extends Transaction {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id != null) 'id': id,
       'date': date.toIso8601String(),
       'description': description,
       'category': category,
@@ -67,6 +71,7 @@ class TransactionModel extends Transaction {
 
   factory TransactionModel.fromEntity(Transaction transaction) {
     return TransactionModel(
+      id: transaction.id,
       date: transaction.date,
       description: transaction.description,
       category: transaction.category,
